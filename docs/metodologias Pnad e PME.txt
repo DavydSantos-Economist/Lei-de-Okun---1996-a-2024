@@ -1,0 +1,11 @@
+metodologias Pnad e PME
+
+https://www.ibge.gov.br/estatisticas/sociais/trabalho/9171-pesquisa-nacional--por-amostra-de-domicilios-continua-mensal.html?=&t=conceitos-e-métodos
+
+https://metadados.ibge.gov.br/consulta/estatisticos/operacoes-estatisticas/BB
+
+
+
+O ipea sugere 3 metodologias para trimestralizar, incluindo média aritimetica
+em DICAS >> Transformação das Séries
+https://ipeadata.gov.br/Default.aspx
