@@ -463,13 +463,67 @@ Após a análise comparativa de quatro especificações (Seção 2.1.4), o **Mod
 
 ### 2.3 Validação e Diagnóstico
 
-Após a inclusão das *dummies* de outlier, a bateria de testes foi reaplicada aos resíduos do modelo final:
+Após a inclusão das *dummies* de *outlier*, a bateria de testes diagnósticos foi reaplicada aos resíduos do modelo final. O objetivo é verificar se as premissas do estimador OLS são satisfeitas, garantindo que os coeficientes estimados sejam **não viesados**, **eficientes** e que a **inferência estatística** (p-valores e intervalos de confiança) seja válida. Os três testes aplicados examinam dimensões distintas do comportamento dos resíduos.
 
-| Teste de Diagnóstico | Hipótese Nula (H₀) | P-valor | Conclusão Final |
-| :--- | :--- | :---: | :--- |
-| **Breusch-Godfrey** | Ausência de Autocorrelação Serial | > 0.10 | Não Rejeita H₀ (Corrigido com HAC) |
-| **White** | Homocedasticidade | > 0.10 | Não Rejeita H₀ (Resíduos Homocedásticos) |
-| **Jarque-Bera** | Resíduos com Distribuição Normal | **> 0.05** | **Não Rejeita H₀ (Resíduos Normais)** |
+#### Teste de Normalidade — Jarque-Bera (JB)
+
+**Teoria:** O estimador OLS não exige normalidade para ser não viesado ou consistente. No entanto, em amostras finitas (como os 114 trimestres deste estudo), a validade dos testes *t* e *F* — usados para avaliar a significância dos coeficientes — depende da normalidade dos resíduos. O teste de Jarque-Bera (1980) avalia se os resíduos seguem uma distribuição normal com base em dois momentos estatísticos:
+
+- **Assimetria (*skewness*):** mede se a distribuição é simétrica em torno da média. Uma distribuição normal tem assimetria = 0.
+- **Curtose (*kurtosis*):** mede o "peso" das caudas da distribuição. Uma distribuição normal tem curtose = 3 (curtose em excesso = 0).
+
+A estatística JB combina esses dois desvios em um único teste:
+$$JB = \frac{n}{6} \left[ S^2 + \frac{(K-3)^2}{4} \right]$$
+onde $n$ é o número de observações, $S$ é a assimetria e $K$ é a curtose. Sob $H_0$, a estatística segue uma distribuição $\chi^2$ com 2 graus de liberdade.
+
+- **H₀:** Os resíduos seguem distribuição normal (assimetria = 0 e curtose = 3).
+- **H₁:** Os resíduos não seguem distribuição normal.
+
+**Resultado obtido — p-valor = 0.607:** O teste **não rejeita H₀**. Economicamente, isso significa que os choques não explicados pelo modelo (os resíduos) se distribuem de forma simétrica e com caudas de peso normal — exatamente o que se espera de um modelo bem especificado que trate adequadamente os *outliers*. A comparação com os Modelos B e D (que falharam no JB com p≈0.001 e p≈0.000, respectivamente) demonstra que o tratamento combinado de interpolação de 1998-T1 e *pulse dummies* em 2002-T2 e 2012-T1 foi o responsável por restaurar a normalidade: sem esse tratamento, os três *outliers* geravam caudas pesadas e assimetria positiva nos resíduos.
+
+O **Q-Q Plot** (gráfico quantil-quantil) na Figura 9 visualiza esse resultado: cada ponto representa um resíduo ordenado, plotado contra os quantis teóricos de uma normal padrão. O alinhamento dos pontos à linha de 45° confirma graficamente a aderência à normalidade.
+
+---
+
+#### Teste de Autocorrelação Serial — Breusch-Godfrey (BG)
+
+**Teoria:** A autocorrelação serial ocorre quando os resíduos de períodos diferentes são correlacionados: $\text{Cov}(\varepsilon_t, \varepsilon_{t-k}) \neq 0$. Em séries temporais macroeconômicas, isso é frequente porque variáveis como desemprego e PIB possuem inércia — o valor de hoje carrega informação sobre o de amanhã. A presença de autocorrelação não vicia os coeficientes OLS, mas **invalida os erros-padrão convencionais**, tornando os p-valores dos testes *t* não confiáveis.
+
+O **Teste de Breusch-Godfrey** (1978) é preferível ao mais simples Durbin-Watson porque: (i) testa autocorrelação de ordens maiores que 1; e (ii) funciona mesmo com variáveis defasadas no lado direito da equação (o que o DW não suporta).
+
+O procedimento regride os resíduos estimados $\hat{\varepsilon}_t$ sobre os regressores originais e sobre as defasagens dos próprios resíduos $(\hat{\varepsilon}_{t-1}, \dots, \hat{\varepsilon}_{t-p})$. O $nR^2$ dessa regressão auxiliar segue $\chi^2(p)$ sob $H_0$.
+
+- **H₀:** Ausência de autocorrelação serial nos resíduos até a ordem $p$.
+- **H₁:** Existe autocorrelação serial.
+
+**Resultado obtido — p-valor ≈ 0.000:** O teste **rejeita H₀** com alta significância — autocorrelação serial está presente em todos os quatro modelos estimados. Isso é esperado em séries trimestrais de mercado de trabalho: o desemprego apresenta forte persistência (inércia), e o modelo de curto prazo captura apenas parte dessa dinâmica. A autocorrelação detectada não indica erro de especificação grave, mas exige correção nos erros-padrão para que a inferência seja válida.
+
+**Solução adotada — Erros-Padrão HAC (Newey-West, *maxlags*=4):** Em vez de transformar o modelo (o que alteraria os coeficientes e complicaria a interpretação), adotou-se a estimação com erros-padrão **HAC** (*Heteroskedasticity and Autocorrelation Consistent*), desenvolvida por Newey e West (1987). Esses erros-padrão corrigem simultaneamente para autocorrelação e heterocedasticidade sem alterar os coeficientes estimados. O parâmetro *maxlags=4* (equivalente a 1 ano de dados trimestrais) define o número máximo de defasagens consideradas na correção, seguindo a heurística padrão da literatura para dados trimestrais. Os coeficientes reportados na Seção 2.2 e todos os p-valores associados já utilizam esses erros-padrão corrigidos.
+
+---
+
+#### Teste de Heterocedasticidade — White
+
+**Teoria:** A homocedasticidade — variância constante dos resíduos ao longo do tempo — é uma das premissas centrais do OLS. Quando violada (**heterocedasticidade**), os coeficientes continuam não viesados, mas os erros-padrão convencionais são inconsistentes, invalidando a inferência estatística. Em dados macroeconômicos de longo prazo, a heterocedasticidade surge com frequência: a variabilidade do desemprego e do PIB tende a ser maior em períodos de crise do que em períodos de estabilidade.
+
+O **Teste de White** (1980) é o mais geral dos testes de heterocedasticidade: regride os quadrados dos resíduos sobre os regressores originais, seus quadrados e seus produtos cruzados, sem assumir nenhuma forma funcional específica para a heterocedasticidade. O $nR^2$ da regressão auxiliar segue $\chi^2$ sob $H_0$.
+
+- **H₀:** Os resíduos são homocedásticos (variância constante).
+- **H₁:** Os resíduos são heterocedásticos (variância não constante).
+
+**Resultado obtido — p-valor = 0.812:** O teste **não rejeita H₀**. Os resíduos do Modelo C apresentam variância aproximadamente constante ao longo do período amostral. Isso é um resultado positivo: o tratamento dos *outliers* (especialmente a interpolação de 1998-T1 e as *pulse dummies*) removeu os pontos de alta alavancagem que poderiam inflar localmente a variância dos resíduos. O modelo em primeira diferença, ao remover a tendência estocástica das variáveis I(1), também contribui para estabilizar a variância ao longo do tempo, ao contrário dos modelos em nível (como o Modelo 2), onde a heterocedasticidade é estruturalmente mais provável.
+
+---
+
+#### Resumo dos Diagnósticos
+
+| Teste de Diagnóstico | H₀ | P-valor | Decisão | Consequência |
+| :--- | :--- | :---: | :--- | :--- |
+| **Jarque-Bera** | Resíduos normais | **0.607** | ✓ Não Rejeita | Inferência via testes *t*/*F* válida |
+| **Breusch-Godfrey** | Sem autocorrelação serial | **≈ 0.000** | ✗ Rejeita | Corrigido com erros-padrão HAC (Newey-West, *maxlags*=4) |
+| **White** | Homocedasticidade | **0.812** | ✓ Não Rejeita | Variância dos resíduos estável |
+
+O modelo satisfaz plenamente as premissas de normalidade e homocedasticidade. A autocorrelação serial — esperada e inevitável em séries de desemprego trimestral — foi tratada de forma robusta via HAC, sem comprometer a validade dos coeficientes estimados nem a interpretação econômica do modelo.
 
 ![Figura 8: Real vs. Estimado — Modelo Final (Fase 2)](../figuras/fase2_modelo1/fig_08_real_vs_estimado_modelo_final.png)
 
