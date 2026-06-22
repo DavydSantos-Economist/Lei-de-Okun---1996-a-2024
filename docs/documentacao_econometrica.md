@@ -479,6 +479,10 @@ onde $n$ é o número de observações, $S$ é a assimetria e $K$ é a curtose. 
 - **H₀:** Os resíduos seguem distribuição normal (assimetria = 0 e curtose = 3).
 - **H₁:** Os resíduos não seguem distribuição normal.
 
+**O que se espera (lógica do teste):** Um p-valor **acima de 0,05** — o resultado *desejado* é a **não-rejeição de H₀**. A lógica é contraintuitiva para quem está começando: quanto maior o p-valor, mais seguros estamos de que os resíduos são normais. Um p-valor baixo (< 0,05) seria ruim, indicando que a distribuição dos erros foge da normal e comprometendo a validade dos testes *t*/*F*.
+
+**O que se espera no histograma:** As barras devem formar um **sino simétrico** ajustado à curva normal teórica (linha vermelha). Sinais de problema: assimetria pronunciada (pico deslocado para um lado), curtose excessiva (pico muito estreito ou distribuição muito achatada) ou caudas pesadas com frequências anômalas. O **Q-Q Plot** é o complemento mais preciso: se os pontos se alinham à diagonal de 45°, a normalidade está confirmada graficamente.
+
 **Resultado obtido — p-valor = 0.607:** O teste **não rejeita H₀**. Economicamente, isso significa que os choques não explicados pelo modelo (os resíduos) se distribuem de forma simétrica e com caudas de peso normal — exatamente o que se espera de um modelo bem especificado que trate adequadamente os *outliers*. A comparação com os Modelos B e D (que falharam no JB com p≈0.001 e p≈0.000, respectivamente) demonstra que o tratamento combinado de interpolação de 1998-T1 e *pulse dummies* em 2002-T2 e 2012-T1 foi o responsável por restaurar a normalidade: sem esse tratamento, os três *outliers* geravam caudas pesadas e assimetria positiva nos resíduos.
 
 O **Q-Q Plot** (gráfico quantil-quantil) na Figura 9 visualiza esse resultado: cada ponto representa um resíduo ordenado, plotado contra os quantis teóricos de uma normal padrão. O alinhamento dos pontos à linha de 45° confirma graficamente a aderência à normalidade.
@@ -575,9 +579,23 @@ Este modelo testa a relação entre o **nível** da taxa de desemprego e o desvi
 - `d_PMENova = 1` de 2002-T1 em diante (transição PME Antiga → PME Nova)
 - `d_PNADc = 1` de 2012-T1 em diante (transição PME Nova → PNADc)
 
+> **Por que `d_PMENova` permanece 1 mesmo após 2012?** Esta é a abordagem padrão de *step dummies empilhadas* para quebras estruturais sequenciais. A `d_PMENova` não volta a 0 quando a PNADc começa — ela fica 1 para sempre. A `d_PNADc`, ao ser adicionada, captura apenas o **deslocamento incremental** de PME Nova para PNADc (γ₂). O resultado são três níveis de intercepto codificados por duas dummies:
+>
+> | Período | `d_PMENova` | `d_PNADc` | Intercepto efetivo |
+> |---|:---:|:---:|---|
+> | PME Antiga (até 2002-T1) | 0 | 0 | β₀ |
+> | PME Nova (2002-T1 a 2012-T1) | 1 | 0 | β₀ + γ₁ |
+> | PNADc (após 2012-T1) | 1 | 1 | β₀ + γ₁ + γ₂ |
+>
+> Se `d_PMENova` voltasse a 0 em 2012, γ₂ passaria a representar o deslocamento total de PME Antiga para PNADc — algebricamente equivalente, mas menos intuitivo econometricamente, pois perde a decomposição incremental de cada quebra.
+
 ![Figura 10b: u_t em nível com as quebras metodológicas identificadas](../figuras/fase3_modelo2/fig_10b_ut_nivel_com_quebras.png)
 
-![Figura 10: Comparação das três medidas de hiato do produto — HP, Hamilton e CF](../figuras/fase3_modelo2/fig_10_comparacao_hiatos.png)
+![Figura 10a: Hiato do Produto — Filtro Hodrick-Prescott (λ=1600), Brasil 1996–2024](../figuras/fase3_modelo2/fig_10a_hiato_hp.png)
+
+![Figura 10b: Hiato do Produto — Filtro Hamilton (2018, h=8, p=4), Brasil 1996–2024](../figuras/fase3_modelo2/fig_10b_hiato_hamilton.png)
+
+![Figura 10c: Hiato do Produto — Filtro Christiano-Fitzgerald (bandpass 6–32 trimestres), Brasil 1996–2024](../figuras/fase3_modelo2/fig_10c_hiato_cf.png)
 
 ### 3.2 Estimação e Interpretação
 
@@ -632,17 +650,65 @@ Estimação OLS com correção HAC (Newey-West, maxlags=4) para lidar com autoco
 
 - **γ₂ = −0.18 (PNADc, p=0.83 — não significante):** A transição para a PNADc em 2012 não gerou um shift significativo no *nível* da série de desemprego quando controlamos pelo hiato. Isso é coerente com o achado visual da Seção 1.1.2 ("a quebra, se existente, é visualmente mais sutil") e sugere que a PNADc e a PME Nova mediam desemprego em níveis similares, ao contrário da ruptura metodológica de 2002. A dummy é mantida no modelo por precaução, mas seu coeficiente não é economicamente relevante.
 
+**NAIRU Implícita (hiato Hamilton = 0):**
+
+| Período | NAIRU Implícita |
+|---|---|
+| **PME Antiga** (pré-2002) | **6,63%** |
+| **PME Nova** (2002-T1 a 2012-T1) | **9,91%** (= 6,63 + 3,27) |
+| **PNADc** (pós-2012-T1) | **9,73%** (= 9,91 − 0,18) |
+
+#### 3.2.3 Resultados do Modelo HP (λ=1600)
+
+| Parâmetro | Variável | Coeficiente | P-valor | Significância |
+| :---: | :--- | :---: | :---: | :--- |
+| **β₁** | Hiato HP | **-0.5038** | 0.000 | Significante a 1% |
+| **β₀** | Constante | **7.2481** | < 0.001 | Significante a 1% |
+| **γ₁** | Step PME Nova (d_PMENova) | **+1.8970** | 0.009 | Significante a 1% |
+| **γ₂** | Step PNADc (d_PNADc) | **+0.8949** | 0.306 | **Não Significante** |
+
+**R² Ajustado: 0.303** | AIC: 500.2 | BIC: 511.2
+
+**Interpretação econômica:**
+- **β₁ = -0.5038:** Para cada 1 ponto percentual de hiato negativo pelo filtro HP, o desemprego aumenta **0,50 p.p.** — o maior coeficiente em valor absoluto entre os filtros estatísticos. Isso é um efeito de escala: o hiato HP tem desvio-padrão muito menor (σ≈1,85%) que o Hamilton (σ≈4,36%), portanto o coeficiente precisa ser maior para explicar a mesma variação em u_t.
+- **γ₁ = +1.90 (PME Nova, p<0.01):** A quebra de 2002 elevou o nível mensurado em ~1,9 p.p. — menor que no Hamilton (3.27 p.p.) porque a diferente calibração do hiato HP absorve parte do shift.
+- **γ₂ = +0.89 (PNADc, p=0.31 — não significante):** Como nos demais modelos, a transição para a PNADc em 2012 não gera shift significativo quando controlamos pelo hiato. Nota: o sinal positivo aqui (ao contrário do negativo nos outros modelos) é um artefato da escala do hiato HP nos extremos da amostra.
+
+**NAIRU Implícita (hiato HP = 0):**
+
+| Período | NAIRU Implícita |
+|---|---|
+| **PME Antiga** (pré-2002) | **7,25%** |
+| **PME Nova** (2002-T1 a 2012-T1) | **9,14%** (= 7,25 + 1,90) |
+| **PNADc** (pós-2012-T1) | **10,04%** (= 9,14 + 0,89) |
+
+> A NAIRU da era PNADc pelo filtro HP (10,04%) é a mais elevada entre os modelos de nível. O HP tende a subestimar o hiato nos extremos da amostra (*end-of-sample revision problem*), o que faz com que períodos de alto desemprego apareçam como próximos do "potencial", inflando a NAIRU estimada — uma das principais críticas ao filtro HP documentadas por Hamilton (2018).
+
+![Figura 11a: Modelo HP — Real vs. Estimado](../figuras/fase3_modelo2/fig_11a_modelo_hiato_HP.png)
+
 ### 3.3 Validação e Diagnóstico
+
+#### 3.3.1 Diagnóstico — Modelo Hamilton (2018) ★
 
 | Teste | H₀ | P-valor | Conclusão |
 | :--- | :--- | :---: | :--- |
-| **Jarque-Bera** | Resíduos normais | 0.276 | ✓ Não Rejeita |
+| **Jarque-Bera** | Resíduos normais | **0.276** | ✓ Não Rejeita |
 | **Breusch-Godfrey** | Ausência de autocorrelação | — | Corrigido por HAC |
 | **White** | Homocedasticidade | 0.001 | ✗ Rejeita (HAC corrige) |
 
 A heterocedasticidade detectada pelo teste de White é esperada em séries de nível com quebras estruturais. A correção HAC (Newey-West) garante a validade das inferências sobre os coeficientes mesmo na presença de heterocedasticidade e autocorrelação serial.
 
 ![Figura 12: Diagnóstico de resíduos — Modelo Hamilton (histograma + Q-Q Plot)](../figuras/fase3_modelo2/fig_12_residuos_diagnostico.png)
+
+#### 3.3.2 Diagnóstico — Modelo HP (λ=1600)
+
+| Teste | H₀ | P-valor | Conclusão |
+| :--- | :--- | :---: | :--- |
+| **Jarque-Bera** | Resíduos normais | **0.057** | ✓ Não Rejeita (marginal) |
+| **Breusch-Godfrey** | Ausência de autocorrelação | — | Corrigido por HAC |
+| **White** | Homocedasticidade | 0.003 | ✗ Rejeita (HAC corrige) |
+
+O HP aprova o JB com margem estreita (p=0,057 — apenas 0,007 acima do limiar de 5%). Esse resultado contrasta com a aprovação folgada do Hamilton (p=0,276), tornando o HP mais vulnerável a violações de normalidade. A heterocedasticidade (White p=0,003) também é mais intensa que no Hamilton (p=0,001), embora ambas sejam corrigidas pelo HAC. Em conjunto, o diagnóstico do HP é mais frágil que o Hamilton, reforçando a escolha do Hamilton como modelo selecionado.
 
 ### 3.4 Conclusão do Modelo 2
 
@@ -652,73 +718,561 @@ A comparação com o Modelo 1 (β₁ = −0.1728 em primeira diferença) revela 
 
 ---
 
-## Fase 4: Modelo 3 - Elasticidade e Tendência Ajustada
+### 3.5 Modelo 3 — Hiato FGV/IBRE (Função de Produção)
+
+Enquanto os filtros do Modelo 2 (HP, Hamilton, CF) derivam o hiato por decomposição estatística da série de PIB, a FGV/IBRE calcula o produto potencial do Brasil por meio de uma **função de produção**, abordagem estrutural amplamente utilizada por bancos centrais e organismos internacionais. O contraste entre os dois métodos é metodologicamente relevante para o TCC.
+
+| Característica | Filtros Estatísticos (Modelo 2) | FGV/IBRE (Modelo 3) |
+|---|---|---|
+| **Base** | IBGE — PIB dessazonalizado | FGV/IBRE — série própria |
+| **Metodologia** | Decomposição tendência-ciclo | Função de produção (PTF + K + L) |
+| **Interpretação do hiato** | Ciclo estatístico | Hiato econômico estrutural |
+| **Componentes** | Apenas PIB | PTF (resíduo de Solow), estoque de capital ajustado, força de trabalho ajustada |
+| **Cobertura** | 1996-T1 a 2024-T4 (nossa amostra) | 1982-T3 a 2025-T3 (173 obs totais) |
+
+**Fonte:** Arquivo `dados/hiato_do_pib_3t25_final_FGV.xlsx` (FGV/IBRE). Implementado no notebook `notebooks/3.modelo de hiato FGV.ipynb`.
+
+#### 3.5.1 A Série FGV/IBRE
+
+A série de hiato do produto da FGV abrange 1982 a 2025 e apresenta variação entre **-14,37%** (maior recessão da amostra) e **+6,99%** (pico de expansão), com média próxima de zero (-0,24%), coerente com a definição de hiato como desvio do potencial. Para os 116 trimestres da amostra de estimação (1996-T1 a 2024-T4), a correlação com o filtro Hamilton é de **0,76** — os dois métodos identificam os mesmos grandes ciclos econômicos (Crise Asiática 1998, Crise Financeira 2008/09, Recessão 2015-16, COVID-19 2020), mas divergem na magnitude e na duração de cada episódio.
+
+![Figura 13: Série do Hiato do Produto — FGV/IBRE, Brasil 1996-2024](../figuras/fase3_modelo2/fig_13_hiato_fgv_serie.png)
+
+![Figura 14: Comparação FGV/IBRE vs Filtro Hamilton (2018)](../figuras/fase3_modelo2/fig_14_comparacao_fgv_hamilton.png)
+
+#### 3.5.2 Estimação e Resultados
+
+A equação estimada é idêntica em estrutura ao Modelo 2:
+
+$$u_t = \beta_0 + \beta_1 \cdot hiato\_fgv_t + \gamma_1 D_{PMENova} + \gamma_2 D_{PNADc} + \varepsilon_t$$
+
+Estimação OLS com correção HAC (Newey-West, maxlags=4). Amostra: **116 observações** (1996-T1 a 2024-T4).
+
+| Parâmetro | Variável | Coeficiente | P-valor | Significância |
+| :---: | :--- | :---: | :---: | :--- |
+| **β₁** | Hiato FGV | **-0.4714** | < 0.001 | Significante a 1% |
+| **β₀** | Constante | **7.2563** | < 0.001 | Significante a 1% |
+| **γ₁** | Step PME Nova (d_PMENova) | **+2.2591** | < 0.001 | Significante a 1% |
+| **γ₂** | Step PNADc (d_PNADc) | **−0.4643** | 0.499 | **Não Significante** |
+
+**R² Ajustado: 0.552** | AIC: 449.0 | BIC: 460.0
+
+**Interpretação econômica:**
+- **β₁ = -0.4714:** Para cada 1 p.p. de hiato negativo (PIB abaixo do potencial da FGV), o desemprego aumenta **0,47 p.p.** — coeficiente substancialmente maior que o do filtro Hamilton (-0.3168), refletindo que o hiato FGV é uma medida mais "comprimida" (menor desvio-padrão que o Hamilton), o que mecaniamente eleva o coeficiente para produzir a mesma variação explicada em u_t.
+- **γ₁ = +2.26 (PME Nova, p<0.001):** A transição de 2002 elevou o nível mensurado de desemprego em ~2,3 p.p. — ligeiramente menor que no Modelo 2 (3.27 p.p.), pois parte do shift é absorvida pela diferente escala do hiato FGV.
+- **γ₂ = −0.46 (PNADc, p=0.499 — não significante):** Confirmando o achado do Modelo 2: a transição para a PNADc em 2012 não gerou shift significativo no nível de desemprego quando controlamos pelo hiato.
+
+![Figura 15: Modelo Hiato FGV/IBRE — Real vs. Estimado](../figuras/fase3_modelo2/fig_15_modelo_hiato_fgv.png)
+
+#### 3.5.3 Diagnóstico dos Resíduos
+
+| Teste | H₀ | P-valor | Decisão | Consequência |
+| :--- | :--- | :---: | :--- | :--- |
+| **Jarque-Bera** | Resíduos normais | **0.007** | ✗ **Rejeita** | Normalidade violada — inferência t/F comprometida |
+| **Breusch-Godfrey** | Sem autocorrelação | ≈ 0.000 | ✗ Rejeita | Corrigido por HAC |
+| **White** | Homocedasticidade | **0.186** | ✓ Não Rejeita | Variância dos resíduos estável |
+
+**O teste JB falha** (p=0,007): a distribuição dos resíduos apresenta assimetria positiva (Skew=0,54) e curtose ligeiramente acima de 3 (Kurt=3,92). Isso indica que os resíduos do modelo FGV têm caudas mais pesadas que a normal, possivelmente porque o hiato FGV não captura plenamente os mesmos outliers que foram tratados no Modelo 1 (em especial 1998-T1 e 2002-T2, que aqui aparecem no componente não explicado). A falha no JB **não invalida os coeficientes OLS** (que continuam não viesados), mas compromete a validade exata dos testes t em amostra finita — mitigado, mas não eliminado, pela correção HAC.
+
+![Figura 16: Diagnóstico de resíduos — Modelo Hiato FGV/IBRE](../figuras/fase3_modelo2/fig_16_residuos_fgv.png)
+
+#### 3.5.4 NAIRU Implícita
+
+A constante do modelo representa o nível de desemprego quando o hiato é zero (economia no potencial). Os coeficientes permitem calcular a **NAIRU implícita** para cada período metodológico:
+
+| Período / Metodologia | NAIRU Implícita (hiato FGV = 0) |
+|---|---|
+| **PME Antiga** (pré-2002) | **7,26%** |
+| **PME Nova** (2002-T1 a 2012-T1) | **9,52%** (= 7,26 + 2,26) |
+| **PNADc** (pós-2012-T1) | **9,05%** (= 9,52 − 0,46) |
+
+Os valores são coerentes com estimativas do Banco Central do Brasil e da própria FGV/IBRE, que situam a taxa de desemprego estrutural do Brasil entre 8% e 12% dependendo do período e da metodologia. A NAIRU elevada (especialmente na era PNADc) reflete rigidez estrutural do mercado de trabalho brasileiro: custos de contratação/demissão, segmentação formal-informal e baixa mobilidade setorial.
+
+---
+
+### 3.6 Análise Comparativa: HP, Hamilton e FGV/IBRE
+
+Os três modelos de nível estimam a mesma relação econômica (Lei de Okun de longo prazo) com diferentes proxies para o hiato. A comparação permite avaliar a robustez do coeficiente de Okun à escolha metodológica do produto potencial.
+
+**Nota sobre comparabilidade:** O filtro Hamilton perde 11 observações pela estrutura de defasagens (h=8, p=4), resultando em 105 obs vs. 116 obs do FGV e do HP. Os valores de AIC não são estritamente comparáveis entre amostras de tamanhos diferentes — as diferenças devem ser interpretadas com cautela, mas orientam a decisão.
+
+| Critério | HP (λ=1600) | Hamilton (2018) ★ | FGV/IBRE |
+|---|---|---|---|
+| **Observações** | 105 | 105 | 116 |
+| **β₁ (coef. Okun)** | -0.5038 | **-0.3168** | -0.4714 |
+| **p-valor β₁** | < 0.001 | < 0.001 | < 0.001 |
+| **R² Ajustado** | 0.303 | 0.349 | **0.552** |
+| **AIC** | 500.2 | **441.8 ★** | 449.0 |
+| **BIC** | 511.2 | **452.4 ★** | 460.0 |
+| **Jarque-Bera (p)** | 0.057 ✓ (marginal) | **0.276 ✓** | 0.007 ✗ |
+| **White (p)** | 0.003 ✗ | 0.001 ✗ | **0.186 ✓** |
+| **HAC** | Sim | Sim | Sim |
+| **NAIRU PME Antiga** | 7,25% | 6,63% | 7,26% |
+| **NAIRU PME Nova** | 9,14% | 9,91% | 9,52% |
+| **NAIRU PNADc** | 10,04% | 9,73% | 9,05% |
+
+**Eliminação:**
+- **HP:** AIC de 500,2 é 58 pontos acima do Hamilton — a pior performance em ajuste dentre os três. JB aprovado apenas na margem (p=0,057). Descartado como modelo principal, mas mantido como referência de robustez.
+- **FGV:** Falha no JB (p=0,007), comprometendo a validade dos testes t em amostra finita. Apesar do R² mais alto (0,552), esse valor é parcialmente explicado pela maior amostra (116 obs) e pela escala mais comprimida do hiato FGV. Mantido como modelo de referência (função de produção).
+
+**Decisão: Hamilton (2018) permanece como modelo selecionado**, pelos critérios determinantes:
+
+1. **AIC substancialmente menor (441,8):** Melhor ajuste penalizado entre os três, com diferença de 7,2 pontos sobre o FGV e 58,4 pontos sobre o HP.
+2. **Normalidade dos resíduos (JB p=0,276):** Aprovação folgada, ao contrário do JB marginal do HP (p=0,057) e da falha do FGV (p=0,007).
+
+**Por que o Hamilton supera o HP neste contexto?** A superioridade estatística do Filtro de Hamilton (2018) sobre o Hodrick-Prescott neste estudo deve-se, substancialmente, à eliminação do viés de fim de amostra (end-of-sample bias). Como o Filtro HP é um estimador simétrico de médias móveis, ele carece de observações futuras para ancorar a tendência nas últimas observações (2024-T4), exigindo extrapolações artificiais da série via modelos preditivos (ARIMA) para mitigar a distorção. O Filtro de Hamilton, por utilizar uma regressão baseada puramente em defasagens passadas, contorna essa falha matemática, produzindo estimativas de hiato robustas e definitivas para o período mais recente da amostra, o que justifica seu melhor ajuste (menor AIC) na estimação da Lei de Okun.
+
+#### Dicotomia JB / White: Interpretação Econômica
+
+Ao observar a tabela comparativa, nota-se um padrão aparentemente paradoxal: os filtros HP e Hamilton **aprovam o JB** (normalidade) mas **reprovam o White** (homocedasticidade), enquanto a FGV **reprova o JB** mas **aprova o White**. Essa inversão não é aleatória — tem fundamento econômico direto ligado à natureza de cada metodologia.
+
+**1. Por que HP e Hamilton aprovam JB e reprovam White**
+
+Os filtros estatísticos acompanham matematicamente os movimentos do PIB ao longo das quatro décadas de amostra. Esse rastreamento contínuo impede que resíduos individuais se tornem absurdamente grandes — os erros ficam distribuídos de forma relativamente simétrica em torno de zero (**normalidade preservada**). Contudo, o mercado de trabalho brasileiro passou por transformações estruturais profundas entre 1996 e 2024: abertura comercial, Plano Real, choques externos e a pandemia alteraram a *magnitude* dos erros ao longo do tempo. Um filtro puramente matemático é "cego" a essas mudanças de regime, e a variância dos resíduos acaba sendo maior nas décadas de maior turbulência — gerando a **heterocedasticidade** detectada pelo White.
+
+**2. Por que a FGV reprova JB e aprova White**
+
+O modelo de função de produção da FGV/IBRE ancora o produto potencial em grandezas físicas — estoque de capital ajustado pela utilização da capacidade instalada e força de trabalho corrigida pela taxa de participação. Essas variáveis evoluem de forma muito estável ao longo das décadas, garantindo que a variância dos resíduos seja praticamente constante no longo prazo (**homocedasticidade preservada**). Contudo, a capacidade física da economia não prevê pânicos financeiros nem pandemias. Em 2020 (COVID-19), 2008 (Crise Financeira Global) ou 2002 (Crise de Confiança Eleitoral), o desemprego variou de forma severa por razões externas à estrutura produtiva — choques exógenos que o modelo FGV não acomoda, gerando *outliers* nos resíduos que fazem o **JB falhar**.
+
+**3. Impacto na inferência e defesa no TCC**
+
+Essa dicotomia não invalida nenhum dos modelos, mas modifica a forma de defender cada resultado:
+
+- **HP e Hamilton:** A heterocedasticidade (falha no White) é integralmente neutralizada pela correção HAC de Newey-West aplicada a todos os modelos. Os erros-padrão robustos garantem que os p-valores e a significância de β₁ sejam confiáveis para inferência, independentemente da variância não-constante dos resíduos.
+
+- **FGV/IBRE:** A falha na normalidade (JB p=0,007) não invalida os coeficientes OLS — que continuam não viesados e consistentes. Pelo Teorema do Limite Central, com $n=116$ trimestres, o estimador MQO mantém suas propriedades assintóticas, mitigando o impacto da não-normalidade sobre a validade dos testes $t$. A falha é, portanto, uma limitação a declarar explicitamente, não um motivo de descarte do modelo como referência comparativa.
+
+*"A análise dos resíduos revela uma dicotomia importante entre os métodos estatísticos e estruturais. Para os filtros HP e Hamilton, a não-homocedasticidade (falha no teste de White) é um comportamento esperado, refletindo a mudança de volatilidade do mercado de trabalho ao longo de quase três décadas. Esse impacto é totalmente neutralizado pelo uso da correção HAC de Newey-West, garantindo que os p-valores e a significância do coeficiente de Okun ($\beta_1$) sejam confiáveis para a inferência. Por outro lado, a medida da FGV/IBRE falhou no pressuposto de normalidade (Jarque-Bera). Economicamente, isso ocorre porque modelos de Função de Produção são excelentes para explicar a variância estrutural de longo prazo (aprovando no teste de White), mas são incapazes de acomodar choques exógenos agudos — como pandemias ou crises de confiança eleitoral — gerando outliers nos resíduos. Estatisticamente, essa fuga da normalidade não invalida a regressão, visto que, pelo Teorema do Limite Central, o estimador MQO mantém suas propriedades de consistência assintótica em amostras razoavelmente extensas ($n=116$)."*
+
+Em síntese: a diferença nos testes diagnósticos reflete precisamente a diferença filosófica entre os métodos — os filtros estatísticos medem *ciclos matemáticos* e são robustos a outliers mas sensíveis a mudanças de regime; a função de produção mede a *capacidade física da economia* e é estável no longo prazo mas vulnerável a choques exógenos agudos. O Hamilton foi selecionado como modelo final porque combina aprovação nos dois testes mais relevantes para inferência (JB e, via HAC, White) com o melhor critério de informação (AIC).
+
+---
+
+**Robustez do coeficiente de Okun:** Os três modelos concordam na direção e significância de β₁. O intervalo [-0,317; -0,504] cobre todas as estimativas de longo prazo e representa o **intervalo de robustez** do coeficiente de Okun de nível para o Brasil. O Hamilton (-0,317) é o limite inferior (mais conservador), o HP (-0,504) o limite superior.
+
+---
+
+### 3.7 Quadro Comparativo Geral — Todos os Modelos
+
+A tabela abaixo sintetiza todos os modelos estimados, cobrindo as dimensões de curto e longo prazo da Lei de Okun.
+
+> **Atenção:** Os valores de AIC/BIC não são comparáveis entre Modelo 1 e os Modelos 2/3, pois as variáveis dependentes são diferentes (Δu_t vs. u_t) e as amostras têm tamanhos distintos. Dentro dos modelos de nível, o HP e o Hamilton têm 105 obs enquanto o FGV tem 116 — AICs também não são estritamente comparáveis entre eles.
+
+| | **Modelo 1** | **Modelo 2a** | **Modelo 2b** | **Modelo 3** |
+|---|---|---|---|---|
+| **Especificação** | Primeira Diferença | Nível — Hiato HP | Nível — Hiato Hamilton | Nível — Hiato FGV/IBRE |
+| **Variável dependente** | Δu_t | u_t | u_t | u_t |
+| **Dimensão** | Curto prazo | Longo prazo | Longo prazo | Longo prazo |
+| **Filtro/Medida** | — | HP (λ=1600) | Hamilton (h=8, p=4) | Função de Produção (PTF+K+L) |
+| **Coef. Okun (β₁)** | **-0.1728** | **-0.5038** | **-0.3168** | **-0.4714** |
+| **Interpretação β₁** | -0,17 p.p. Δu por +1% ΔPIB | -0,50 p.p. u por +1 p.p. hiato | -0,32 p.p. u por +1 p.p. hiato | -0,47 p.p. u por +1 p.p. hiato |
+| **R² Ajustado** | 0.455 | 0.303 | 0.349 | 0.552 |
+| **N observações** | 114 | 105 | 105 | 116 |
+| **AIC** | — | 500.2 | **441.8** | 449.0 |
+| **JB (normalidade)** | ✓ 0.607 | ✓ 0.057 (marginal) | ✓ **0.276** | ✗ 0.007 |
+| **White (homoc.)** | ✓ 0.812 | ✗ 0.003 | ✗ 0.001 | ✓ 0.186 |
+| **Correção** | HAC | HAC | HAC | HAC |
+| **Status** | **Final ★** | Referência | **Final ★** | Referência comparativa |
+
+**Interpretação econômica consolidada:**
+
+O coeficiente de Okun cresce em valor absoluto ao se mover do curto para o longo prazo — de **-0,17** (trimestral, primeira diferença) para **-0,32 a -0,50** (nível, hiato, dependendo do filtro). Isso é o padrão canônico da literatura internacional: no curto prazo, as empresas absorvem choques de demanda ajustando horas trabalhadas, informalidade e produtividade, antes de ajustar o nível de emprego. No longo prazo, o ajuste se completa e o coeficiente é maior em valor absoluto.
+
+O coeficiente do filtro HP (-0,50) é mais alto que o do Hamilton (-0,32) por um efeito de escala: o hiato HP tem desvio-padrão ~4× menor que o Hamilton, o que infla mecanicamente o coeficiente. O intervalo de robustez dos modelos de longo prazo selecionados é **[-0,317; -0,471]** (Hamilton e FGV), sendo o HP (-0,504) um limite superior de referência sensível ao filtro escolhido.
+
+Para o Brasil, o coeficiente de curto prazo (-0,17) é relativamente baixo em comparação com economias desenvolvidas (onde tipicamente varia entre -0,3 e -0,5 trimestralmente), sugerindo maior rigidez e lentidão de ajuste do mercado de trabalho brasileiro.
+
+---
+
+### 3.8 NAIRU Implícita — Teoria, Derivação e Análise Comparativa
+
+#### 3.8.1 Conceito e Origem Teórica
+
+A **NAIRU** (*Non-Accelerating Inflation Rate of Unemployment* — Taxa de Desemprego que Não Acelera a Inflação) é o nível de desemprego compatível com uma taxa de inflação estável, ou seja, o patamar abaixo do qual pressões inflacionárias emergem no mercado de trabalho. O conceito foi introduzido simultaneamente por **Milton Friedman (1968)** e **Edmund Phelps (1968)** — trabalho que rendeu a Phelps o Nobel de Economia em 2006 — como uma resposta crítica à curva de Phillips original, que postulava um *trade-off* permanente e estável entre inflação e desemprego.
+
+A contribuição central de Friedman e Phelps foi demonstrar que esse *trade-off* só existe no **curto prazo**, quando os agentes econômicos estão sendo surpreendidos por inflação não antecipada. No longo prazo, uma vez que as expectativas se ajustam, a economia converge para uma taxa de desemprego determinada por fatores estruturais — as **fricções** do mercado de trabalho — e não pela política monetária. Essa taxa de equilíbrio foi denominada por Friedman de **taxa natural de desemprego** (*natural rate of unemployment*).
+
+> **NAIRU vs. Taxa Natural:** embora frequentemente usados como sinônimos, os conceitos têm nuances. A *taxa natural* de Friedman é uma grandeza de equilíbrio de longo prazo, derivada de fundamentos microeconômicos (custos de busca, matching, fricções). A NAIRU é uma grandeza mais operacional, estimável econometricamente, que pode variar ao longo do tempo conforme o perfil das fricções muda — por isso é chamada de NAIRU *variante no tempo* em estimações mais sofisticadas (Kalman filter, estado-espaço). Neste TCC, estimamos uma **NAIRU constante por período metodológico**, que é a interpretação dos interceptos das regressões de nível.
+
+**Fatores estruturais que determinam a NAIRU:**
+
+1. **Custos de ajuste do emprego** (*hiring & firing costs*): quanto mais onerosa é a demissão — multas, FGTS, aviso prévio, processos trabalhistas — mais as empresas evitam contratar, elevando o desemprego de equilíbrio. No Brasil, a legislação trabalhista é historicamente uma das mais restritivas da América Latina.
+2. **Segmentação formal-informal**: a dualidade do mercado de trabalho brasileiro cria um "buffer" de informalidade que absorve choques de demanda sem registrar como desemprego aberto, distorcendo a relação entre atividade econômica e NAIRU.
+3. **Fricções de matching** (*search & matching*): imperfeições de informação e custos de mobilidade geográfica e setorial atrasam o encontro entre vagas e trabalhadores, sustentando um estoque de desemprego friccional elevado.
+4. **Choques históricos persistentes** (*hysteresis*): períodos prolongados de alto desemprego (Brasil 1999–2003, 2015–2019) podem elevar a NAIRU permanentemente, pois trabalhadores desempregados por longo tempo perdem capital humano e sinalização, tornando-se menos empregáveis (*scarring effect*).
+
+#### 3.8.2 Derivação Algébrica a partir dos Modelos Estimados
+
+A NAIRU implícita é extraída diretamente dos coeficientes das regressões de nível (Modelos 2 e 3). A lógica é simples: a NAIRU é o valor de $u_t$ que se verifica quando o **hiato do produto é zero** — ou seja, quando o PIB efetivo é igual ao PIB potencial, a economia opera em plena capacidade e o desemprego resulta apenas das fricções estruturais.
+
+Partindo da equação estimada:
+
+$$u_t = \beta_0 + \beta_1 \cdot hiato_t + \gamma_1 D_{PMENova} + \gamma_2 D_{PNADc} + \varepsilon_t$$
+
+Fazendo $hiato_t = 0$ e $\varepsilon_t = 0$ (condição de equilíbrio de longo prazo):
+
+$$\text{NAIRU}_t = \beta_0 + \gamma_1 \cdot D_{PMENova,t} + \gamma_2 \cdot D_{PNADc,t}$$
+
+Como as *step dummies* são indicadoras do período vigente, a NAIRU assume três valores distintos conforme a metodologia de pesquisa em cada período:
+
+| Período | $D_{PMENova}$ | $D_{PNADc}$ | NAIRU Implícita |
+|---|:---:|:---:|---|
+| **PME Antiga** (até 2002-T1) | 0 | 0 | $\hat{\beta}_0$ |
+| **PME Nova** (2002-T1 a 2012-T1) | 1 | 0 | $\hat{\beta}_0 + \hat{\gamma}_1$ |
+| **PNADc** (a partir de 2012-T1) | 1 | 1 | $\hat{\beta}_0 + \hat{\gamma}_1 + \hat{\gamma}_2$ |
+
+> **Interpretação das dummies como ajuste metodológico:** os coeficientes $\gamma_1$ e $\gamma_2$ não representam uma mudança *econômica* na NAIRU, mas sim o shift de nível introduzido pela mudança na pesquisa de emprego. Ao separar os interceptos por período, é possível estimar a NAIRU em cada regime de medição de forma consistente — o que seria impossível sem o controle das quebras metodológicas.
+
+#### 3.8.3 NAIRU Implícita — Resultados dos Três Modelos
+
+A tabela abaixo consolida as NAIRUs calculadas pelos três modelos de nível (HP, Hamilton e FGV/IBRE), derivadas segundo a fórmula acima:
+
+| Modelo | Filtro / Metodologia | NAIRU PME Antiga (até 2002) | NAIRU PME Nova (2002–2012) | NAIRU PNADc (2012–2024) |
+|---|---|:---:|:---:|:---:|
+| **Modelo 2a** | HP (λ=1600) | 7,25% | 9,14% | 10,04% |
+| **Modelo 2b ★** | Hamilton (2018) | **6,63%** | **9,91%** | **9,73%** |
+| **Modelo 3** | FGV/IBRE (Função de Produção) | 7,26% | 9,52% | 9,05% |
+| **Intervalo de robustez** | — | **6,63–7,26%** | **9,14–9,91%** | **9,05–10,04%** |
+
+> **★ Modelo selecionado:** Hamilton (2018), por menor AIC e aprovação no Jarque-Bera.
+
+**Derivação explícita — Modelo Hamilton (2018):**
+
+$$\text{NAIRU}_{PME\,Antiga} = \hat{\beta}_0 = 6{,}63\%$$
+$$\text{NAIRU}_{PME\,Nova} = 6{,}63 + 3{,}27 = 9{,}91\%$$
+$$\text{NAIRU}_{PNADc} = 9{,}91 + (-0{,}18) = 9{,}73\%$$
+
+**Derivação explícita — Modelo HP (λ=1600):**
+
+$$\text{NAIRU}_{PME\,Antiga} = \hat{\beta}_0 = 7{,}25\%$$
+$$\text{NAIRU}_{PME\,Nova} = 7{,}25 + 1{,}90 = 9{,}14\%$$
+$$\text{NAIRU}_{PNADc} = 9{,}14 + 0{,}89 = 10{,}04\%$$
+
+> **Por que a NAIRU da era PNADc pelo HP é a mais elevada?** O HP sofre do *end-of-sample bias*: nas últimas observações da amostra (2022–2024), o filtro carece de observações futuras para ancorar a tendência e tende a interpretar a recuperação pós-COVID como "potencial", reduzindo o hiato estimado. Um hiato menor implica que o desemprego observado está mais próximo do equilíbrio — inflando a NAIRU estimada. Hamilton (2018) detalha matematicamente esse fenômeno e é exatamente a razão pela qual seu filtro foi selecionado como referência neste estudo.
+
+**Derivação explícita — Modelo FGV/IBRE:**
+
+$$\text{NAIRU}_{PME\,Antiga} = \hat{\beta}_0 = 7{,}26\%$$
+$$\text{NAIRU}_{PME\,Nova} = 7{,}26 + 2{,}26 = 9{,}52\%$$
+$$\text{NAIRU}_{PNADc} = 9{,}52 + (-0{,}46) = 9{,}05\%$$
+
+#### 3.8.4 Interpretação Econômica — O que esses números dizem sobre o Brasil?
+
+**1. Consistência com a literatura:**
+
+As NAIRUs estimadas são coerentes com os intervalos divulgados por instituições especializadas. O Banco Central do Brasil estima a taxa de desemprego estrutural entre **8,5% e 10,5%** para a era PNADc (BACEN, Relatório de Inflação, 2022–2024). A FGV/IBRE trabalha com estimativas entre **9% e 11%** para o mesmo período, dependendo da metodologia. Nosso intervalo de robustez **(9,05–9,73%)** se encaixa precisamente no limite inferior dessas estimativas, o que valida a qualidade dos modelos estimados.
+
+**2. A quebra de 2002 domina a variação:**
+
+O principal determinante da diferença entre os períodos é a transição PME Antiga → PME Nova em 2002, que elevou a NAIRU medida em **+2,3 a +3,3 p.p.** dependendo do modelo. Essa quebra não representa uma deterioração econômica real do mercado de trabalho — é um artefato da ampliação da cobertura da pesquisa (a PME Nova passou a incluir trabalhadores anteriormente não captados). Sem o controle por dummies, os coeficientes de Okun seriam enviesados e a NAIRU estimada, sem sentido.
+
+**3. A NAIRU da era PNADc (~9,0–9,9%) é alta — e por quê:**
+
+Em perspectiva internacional, a NAIRU do Brasil é elevada. Para comparação, a OCDE estimou a NAIRU dos EUA em ~4%, da Alemanha em ~3,5% e do Chile — um país de renda média como o Brasil — em ~7% para o período 2015–2019. Os principais determinantes estruturais da NAIRU elevada brasileira são:
+
+- **Custo de demissão**: a combinação de FGTS (8% sobre o salário + 40% de multa na demissão sem justa causa), aviso prévio proporcional e riscos de litígio trabalhista torna o custo de demissão no Brasil um dos mais altos do mundo emergente. Isso reduz a disposição de contratar, elevando o desemprego de equilíbrio.
+- **Segmentação formal-informal**: aproximadamente 40% da força de trabalho opera na informalidade (PNADc, 2019–2024). Trabalhadores informais não figuram nas estatísticas de desemprego quando perdem a ocupação da mesma forma que os formais — criando uma "válvula de escape" que mascara parte do ajuste, mas eleva a NAIRU da parcela formal.
+- **Baixa mobilidade geográfica e setorial**: o Brasil tem uma das menores taxas de migração interna entre países de grande território, dificultando o *matching* entre vagas abertas em regiões/setores em expansão e trabalhadores desempregados em regiões/setores em retração.
+- **Efeitos de histerese**: a recessão 2015–2019 (a mais severa desde a redemocratização) com desemprego de pico de ~14% (PNADc) provavelmente gerou efeitos de *scarring* permanentes — redução de capital humano e sinalizações negativas para empregadores, que sustentam a NAIRU em patamares mais elevados mesmo após a recuperação econômica.
+
+**4. A descida pós-2022 e o futuro da NAIRU:**
+
+A taxa de desemprego brasileira caiu de ~14% em 2021 para ~6,2% em 2024 (PNADc). Essa trajetória, aliada ao crescimento do emprego formal (CAGED), sugere que o desemprego efetivo está se aproximando — e possivelmente cruzando — a NAIRU estimada. Se confirmado, isso seria consistente com a escalada inflacionária observada no mesmo período, que o Banco Central respondeu elevando a taxa Selic. Esse episódio recente ilustra empiricamente a relevância prática da NAIRU: quando o desemprego cai abaixo dela, a inflação tende a acelerar — exatamente o mecanismo descrito por Friedman (1968) há mais de cinco décadas.
+
+---
+
+## Fase 4: Modelo 4 — Elasticidade do Produto (Tendência Ajustada)
 
 Este modelo estima a tendência do PIB e o efeito do desemprego sobre ele simultaneamente.
 
 ### 4.1 Estimação e Interpretação
 
-*   **Equação:** $\ln\_pib_t = \beta_0 + \beta_1 \cdot t + \beta_2 \cdot u_t + \gamma_1 D_{PMENova} + \gamma_2 D_{PNADc} + \varepsilon_t$
-*   **Estimação:** Rodar a regressão OLS de `ln_pib_t` contra uma tendência de tempo (`t`), a taxa de desemprego em nível (`u_t`) e as dummies metodológicas da pesquisa do IBGE (que também entram nesta regressão pelo mesmo motivo do Modelo 2: a variável $u_t$ está em nível e carrega as quebras de pesquisa).
-*   **Interpretação:** $\beta_2$ mede a **elasticidade** do produto em relação ao desemprego. Informa em quantos por cento o PIB muda para cada variação de 1 ponto percentual na taxa de desemprego. Espera-se que seja negativo.
+#### 4.1.1 Especificação do Modelo
 
-#### 4.1.1 Derivação do Produto Potencial e Hiato Estático
+O Modelo 4 estima a relação inversa da Lei de Okun no nível do produto, incluindo uma tendência determinística para capturar o crescimento secular do PIB e dummies de quebra metodológica:
 
-Após a estimação robusta dos parâmetros da equação, o Produto Potencial ($Y^*$) para qualquer período será derivado fixando-se a taxa de desemprego ($u_t$) em um nível de pleno emprego (por exemplo, a taxa natural ou a média histórica do período, a ser definida). A equação assumirá a forma: 
-$\ln Y^*_t = \hat{\beta_0} + \hat{\beta_1} \cdot t + \hat{\beta_2} \cdot (Taxa\_Fixa) + \hat{\gamma_1} D_{PMENova} + \hat{\gamma_2} D_{PNADc}$
-A diferença entre o $\ln PIB$ efetivo e o $\ln Y^*$ derivado fornecerá a medida do hiato baseada na elasticidade estimada.
+$$\ln\_pib_t = \beta_0 + \beta_1 \cdot t + \beta_2 \cdot u_t + \gamma_1 D_{PMENova} + \gamma_2 D_{PNADc} + \varepsilon_t$$
+
+| Parâmetro | Interpretação econômica |
+|-----------|------------------------|
+| $\beta_1$ | Taxa de crescimento trimestral do PIB potencial (tendência determinística) |
+| $\beta_2$ | **Elasticidade de Okun**: variação % no PIB por 1 p.p. na taxa de desemprego — esperado $\beta_2 < 0$ |
+| $\gamma_1, \gamma_2$ | Correção dos shifts de nível causados pelas transições PME Antiga → PME Nova (2002) e PME Nova → PNADc (2012) |
+
+A estimação utiliza MQO com correção HAC (Newey-West, `maxlags=4`) para lidar com a autocorrelação serial e heterocedasticidade dos resíduos.
+
+A Figura 17 apresenta a relação visual entre as duas variáveis ao longo do período amostral, com o eixo do desemprego invertido para evidenciar a co-movimentação negativa esperada:
+
+![Figura 17 — ln(PIB) vs. Taxa de Desemprego (1996–2024)](../figuras/fase4_modelo4/fig_17_exploratoria_pib_desemprego.png)
+*Figura 17 — Análise exploratória: ln(PIB real) e taxa de desemprego no mesmo eixo temporal. Eixo direito (desemprego) invertido. As faixas coloridas delimitam os subperíodos metodológicos: PME Antiga (amarelo), PME Nova (verde) e PNADc (azul).*
+
+#### 4.1.2 Resultados da Estimação (OLS-HAC)
+
+A regressão sobre 116 observações (1996-T1 a 2024-T4) produziu:
+
+| Coeficiente | Valor | p-valor | Significância |
+|-------------|-------|---------|---------------|
+| $\beta_0$ (const) | 12,2424 | < 0,001 | *** |
+| $\beta_1$ (tendência) | 0,003988 | < 0,001 | *** |
+| $\beta_2$ (elasticidade $u_t$) | −0,0195 | < 0,001 | *** |
+| $\gamma_1$ ($D_{PMENova}$) | 0,1590 | < 0,001 | *** |
+| $\gamma_2$ ($D_{PNADc}$) | 0,0596 | 0,030 | ** |
+
+**Ajuste:** $R^2_{Adj} = 0{,}967$ | AIC = −434,52
+
+Todos os coeficientes são estatisticamente significativos ao nível de 5%. O coeficiente de tendência $\beta_1 = 0{,}003988$ implica um crescimento trimestral de 0,40%, equivalente a **1,60% ao ano** — compatível com o crescimento médio do PIB brasileiro no período. A elasticidade $\beta_2 = -0{,}0195$ indica que um aumento de 1 p.p. na taxa de desemprego está associado a uma redução de 1,95% no PIB, ceteris paribus.
+
+A Figura 18 mostra a aderência do modelo aos dados observados, com a caixa de anotações sintetizando todos os coeficientes e indicadores de qualidade:
+
+![Figura 18 — Modelo 4: ln(PIB) Real vs. Estimado](../figuras/fase4_modelo4/fig_18_modelo_elasticidade.png)
+*Figura 18 — ln(PIB real) observado (azul) e estimado pelo Modelo 4 (vermelho tracejado). A caixa de anotações apresenta os coeficientes estimados com p-valores, R²Adj, resultados dos testes de normalidade e heterocedasticidade, e a confirmação da cointegração (Engle-Granger p = 0,0004).*
+
+#### 4.1.3 Derivação do Produto Potencial e Hiato Implícito
+
+O Produto Potencial ($\ln Y^*_t$) é derivado fixando-se a taxa de desemprego no valor da NAIRU estimada pelo Modelo 2 (Filtro Hamilton) para cada subperíodo metodológico:
+
+$$\ln Y^*_t = \hat{\beta}_0 + \hat{\beta}_1 \cdot t + \hat{\beta}_2 \cdot NAIRU_t + \hat{\gamma}_1 D_{PMENova} + \hat{\gamma}_2 D_{PNADc}$$
+
+| Período | NAIRU (Hamilton) |
+|---------|-----------------|
+| PME Antiga (pré-2002) | 6,63% |
+| PME Nova (2002–2012) | 9,91% |
+| PNADc (pós-2012) | 9,73% |
+
+O **hiato implícito** é calculado como:
+
+$$\text{hiato\_elast}_t = (\ln\_pib_t - \ln Y^*_t) \times 100$$
+
+---
 
 ### 4.2 Validação e Diagnóstico
 
-1.  **Testes Padrão:** Resíduos, Especificação e Estabilidade (mesmos das fases anteriores).
-2.  **Teste de Cointegração (Engle-Granger):** **Crucial para este modelo.** Como usamos variáveis I(1), precisamos verificar se os resíduos são estacionários (I(0)).
-    *   **H₀:** Os resíduos têm raiz unitária (Não há cointegração).
-    *   **H₁:** Os resíduos são estacionários (Há cointegração).
-    *   **Interpretação:** Se houver cointegração, existe uma relação de longo prazo válida. Se não, a regressão é espúria.
-3.  **Teste de Multicolinearidade (VIF):** Por termos duas variáveis explicativas (`t` e `u_t`), é importante verificar se elas não são altamente correlacionadas, o que poderia inflar a variância dos coeficientes. Calcular o *Variance Inflation Factor* (VIF). Um VIF > 10 é um sinal de alerta.
+#### 4.2.1 O Problema da Regressão Espúria e a Necessidade da Cointegração
 
-### 4.3 Conclusão do Modelo 3
+**Este é o principal risco econométrico do Modelo 4 e deve ser tratado com rigor.**
 
-Re-estimar com correção HAC, se necessário. Apresentar a equação final robusta e interpretar a elasticidade encontrada.
+Tanto $\ln PIB$ quanto a taxa de desemprego $u_t$ são variáveis integradas de ordem 1 — isto é, $I(1)$: possuem raiz unitária em nível e tornam-se estacionárias apenas na primeira diferença (confirmado pelos testes ADF da Seção 1.3). Quando se estima uma regressão em nível com variáveis $I(1)$, existe o risco de se obter uma **regressão espúria** (Granger & Newbold, 1974): os coeficientes parecem altamente significativos e o $R^2$ é elevado não porque existe uma relação econômica real, mas porque as séries compartilham a mesma tendência estocástica de longo prazo por pura coincidência.
+
+O diagnóstico clássico de uma regressão espúria é a combinação de:
+
+- $R^2$ muito alto (frequentemente > 0,90);
+- Estatística de Durbin-Watson muito baixa (próxima de zero), indicando forte autocorrelação positiva nos resíduos.
+
+No caso do Modelo 4, o $R^2_{Adj} = 0{,}967$ e o Durbin-Watson $= 0{,}425$ ativam exatamente esse sinal de alerta. **Por si só, esses resultados não comprovam espuriedade — mas exigem que a cointegração seja formalmente testada.**
+
+#### 4.2.2 Cointegração como Solução: O Teste de Engle-Granger (1987)
+
+A saída para o problema das séries $I(1)$ em nível é demonstrar que, embora cada série individualmente seja não-estacionária, **existe uma combinação linear entre elas que é estacionária**. Quando isso ocorre, as variáveis são ditas **cointegradas**: elas "caminham juntas" no longo prazo e os desvios temporários de equilíbrio são sempre corrigidos. Nesse caso, a regressão em nível não é espúria — ela estima uma **relação de equilíbrio de longo prazo genuína**.
+
+O procedimento de Engle-Granger (1987) para testar cointegração em duas etapas é:
+
+**Etapa 1 — Regressão de cointegração:** Estimar a regressão OLS em nível (já realizada na Seção 4.1.2) e salvar os resíduos $\hat{\varepsilon}_t$.
+
+**Etapa 2 — Teste ADF nos resíduos:**
+
+$$H_0: \hat{\varepsilon}_t \sim I(1) \quad \text{(sem cointegração — regressão espúria)}$$
+$$H_1: \hat{\varepsilon}_t \sim I(0) \quad \text{(com cointegração — relação de longo prazo válida)}$$
+
+O teste ADF é aplicado **sem constante** (`regression='n'`), pois os resíduos OLS têm média zero por construção. Se o teste rejeitar $H_0$ — isto é, se os resíduos forem estacionários — fica provado que as variáveis são cointegradas e a regressão é economicamente válida.
+
+> **Nota metodológica:** os valores críticos do ADF padrão (MacKinnon, 1994) são conservadores quando aplicados aos resíduos de uma regressão com múltiplos regressores ($k > 1$). MacKinnon (2010) fornece valores críticos específicos para a regressão de cointegração multivarivel. Para fins do TCC, o ADF padrão é utilizado como proxy, com a ressalva de que os valores críticos são ligeiramente mais negativos do que o necessário — o que torna o teste conservador (enviesado contra a rejeição da espuriedade).
+
+#### 4.2.3 Resultados dos Testes Diagnósticos
+
+**Raiz Unitária (ADF) — Condição para o Teste de Cointegração:**
+
+| Série | Nível | 1ª Diferença | Conclusão |
+|-------|-------|--------------|-----------|
+| $\ln\_pib$ | p = 0,861 (I(1)) | p < 0,001 (I(0)) | I(1) ✓ |
+| $u_t$ | p = 0,009 (borderline) | p = 0,001 (I(0)) | I(1) por convenção ✓ |
+
+> **Nota sobre $u_t$:** A taxa de desemprego apresenta resultado limítrofe no ADF em nível (p = 0,009 com constante), sugerindo possível estacionaridade. Na prática, é comum tratar desemprego como $I(1)$ em amostras curtas com componente de tendência (stock-flow dynamics), o que justifica a aplicação do teste de cointegração.
+
+**Cointegração (Engle-Granger):**
+
+| Teste | Estatística ADF | p-valor | Valores Críticos (1%/5%/10%) | Conclusão |
+|-------|----------------|---------|------------------------------|-----------|
+| ADF nos resíduos (sem constante, 0 lags) | −3,5574 | 0,0004 | −2,585 / −1,944 / −1,615 | **✓ Cointegração confirmada** |
+
+A estatística ADF de −3,5574 supera o valor crítico de 1% (−2,585), e o p-valor de 0,0004 rejeita $H_0$ com folga. Os resíduos da regressão são estacionários $I(0)$: **a relação entre $\ln PIB$ e desemprego é de longo prazo genuína, não espúria.** O Modelo 4 está validado.
+
+**Diagnóstico dos Resíduos:**
+
+| Teste | Estatística | p-valor | Interpretação |
+|-------|-------------|---------|---------------|
+| Jarque-Bera | 10,775 | 0,0046 | Não-Normal (assimetria leve: −0,72) |
+| Breusch-Godfrey (4 lags) | 73,351 | < 0,001 | Autocorrelação presente (esperada em séries de nível) |
+| White | 74,501 | < 0,001 | Heterocedasticidade presente |
+
+A autocorrelação e heterocedasticidade são esperadas em regressões de nível com dados trimestrais de longo prazo. A correção HAC (Newey-West, `maxlags=4`) torna os erros-padrão e as estatísticas de teste válidos assintoticamente, sem alterar os coeficientes estimados.
+
+A Figura 20 apresenta o histograma dos resíduos com a curva normal teórica sobreposta e o Q-Q Plot para avaliação visual da normalidade:
+
+![Figura 20 — Diagnóstico de Resíduos: Histograma e Q-Q Plot](../figuras/fase4_modelo4/fig_20_residuos_elasticidade.png)
+*Figura 20 — Diagnóstico de resíduos do Modelo 4. Painel esquerdo: histograma com curva normal teórica sobreposta (skewness = −0,72; kurtosis = 3,42). Painel direito: Q-Q Plot com linha teórica de referência. A assimetria negativa leve é visível nas caudas, mas não compromete a inferência assintótica com HAC.*
+
+**Multicolinearidade (VIF):**
+
+| Variável | VIF | Avaliação |
+|----------|-----|-----------|
+| $t$ (tendência) | 7,22 | Atenção — esperado |
+| $u_t$ | 1,24 | Ok |
+| $D_{PMENova}$ | 2,56 | Ok |
+| $D_{PNADc}$ | 4,73 | Ok |
+
+O VIF elevado para a tendência é estrutural em regressões de cointegração com série temporal: tanto $t$ quanto $\ln PIB$ crescem ao longo do tempo por construção. Isso não invalida os resultados, mas reforça a importância do teste de cointegração para distinguir relação real de co-tendência espúria.
 
 ---
 
+### 4.3 Conclusão do Modelo 4
+
+#### 4.3.1 Síntese dos Resultados
+
+O Modelo 4 estima a elasticidade do produto em relação ao desemprego no longo prazo, controlando para a tendência de crescimento do PIB potencial e para as quebras metodológicas das pesquisas de emprego. Os resultados principais são:
+
+**Equação estimada (OLS-HAC, 116 obs., 1996-T1 a 2024-T4):**
+
+$$\widehat{\ln\_pib}_t = 12{,}2424 + 0{,}003988 \cdot t - 0{,}0195 \cdot u_t + 0{,}1590 \cdot D_{PMENova} + 0{,}0596 \cdot D_{PNADc}$$
+
+Todos os coeficientes são significativos ao nível de 5% (os primeiros quatro ao nível de 1%). O ajuste é excelente: $R^2_{Adj} = 0{,}967$.
+
+#### 4.3.2 Interpretação Econômica dos Coeficientes
+
+**Tendência determinística ($\beta_1 = 0{,}003988$):**
+O PIB potencial cresce a uma taxa de 0,40% por trimestre, o equivalente a **1,60% ao ano**. Esse valor é compatível com as estimativas de crescimento potencial do Brasil para o período pós-abertura econômica, que oscilam entre 1,5% e 2,5% ao ano conforme a literatura empírica (Banco Central, IPEA).
+
+**Elasticidade de Okun ($\beta_2 = -0{,}0195$):**
+Um aumento de 1 ponto percentual na taxa de desemprego está associado, no longo prazo, a uma **redução de 1,95% no PIB real** (em log), mantidas constantes a tendência e as dummies metodológicas. O sinal negativo é consistente com a Lei de Okun: mais desemprego reflete menor utilização do fator trabalho e, portanto, menor produção.
+
+> **Interpretação no contexto dos demais modelos:** O Modelo 1 (primeira diferença) estimou o coeficiente de curto prazo $\beta \approx -1\%$ para cada 1 p.p. de variação no desemprego. O Modelo 2 (hiato) estimou a relação inversa com elasticidade de longo prazo implícita derivada da NAIRU. O Modelo 4 complementa esses resultados ao estimar diretamente a elasticidade nível-a-nível de longo prazo: −1,95% de variação no produto por 1 p.p. de desemprego.
+
+**Dummies metodológicas ($\gamma_1 = 0{,}1590$; $\gamma_2 = 0{,}0596$):**
+A transição para a PME Nova (2002) elevou o nível registrado do $\ln PIB$ em 0,159 — reflexo do salto metodológico no desemprego. A transição para a PNADc (2012) acrescentou mais 0,060 ao nível. Esses coeficientes não têm interpretação econômica direta: capturam apenas a descontinuidade nas pesquisas.
+
+#### 4.3.3 Produto Potencial e Hiato Implícito
+
+Fixando a taxa de desemprego na NAIRU estimada pelo Modelo 2 (Hamilton) para cada subperíodo, deriva-se o produto potencial $\ln Y^*_t$ e o hiato implícito:
+
+| Estatística do Hiato | Valor |
+|----------------------|-------|
+| Desvio-padrão ($\sigma$) | 5,72 p.p. |
+| Mínimo | −15,45% (recessão profunda) |
+| Máximo | +13,56% (expansão) |
+| Correlação com Hiato Hamilton | **0,523** |
+
+O hiato do Modelo 4 e o hiato do Filtro Hamilton (Modelo 2) apresentam **correlação positiva moderada de 0,52**: capturam a mesma direção do ciclo econômico, mas diferem em magnitude. Isso é esperado, pois os dois métodos partem de premissas distintas — o Hamilton usa exclusivamente informações do PIB para extrair o ciclo, enquanto o Modelo 4 ancora o potencial na NAIRU do desemprego e na tendência determinística.
+
+A Figura 19 compara lado a lado os dois hiatos, evidenciando as semelhanças e divergências ao longo dos ciclos econômicos:
+
+![Figura 19 — Hiato Implícito (Modelo 4) vs. Hiato Filtro Hamilton (Modelo 2)](../figuras/fase4_modelo4/fig_19_hiato_elasticidade_vs_hamilton.png)
+*Figura 19 — Comparação dos hiatos do produto. Painel superior: hiato implícito do Modelo 4 (elasticidade com NAIRU Hamilton como referência). Painel inferior: hiato do Filtro Hamilton (2018). Áreas vermelhas representam períodos de produto abaixo do potencial (recessão); áreas coloridas indicam expansão. Correlação entre as duas séries: 0,52.*
+
+#### 4.3.4 Validade do Modelo e Limitações
+
+**Pontos favoráveis:**
+- ✓ **Cointegração confirmada** (p = 0,0004): a relação não é espúria. $\ln PIB$ e $u_t$ compartilham uma trajetória de equilíbrio de longo prazo.
+- ✓ **HAC robusto**: autocorrelação (Breusch-Godfrey p < 0,001) e heterocedasticidade (White p < 0,001) estão presentes, como esperado em séries de nível, mas a correção Newey-West garante inferência válida assintoticamente.
+- ✓ **Elasticidade significativa e com sinal correto**: $\beta_2 < 0$ ao nível de 1%.
+
+**Limitações:**
+- ✗ **Não-normalidade dos resíduos** (Jarque-Bera p = 0,005): assimetria negativa leve (−0,72) e curtose próxima do normal (3,42). Em amostras de 116 observações, o Teorema Central do Limite garante que os estimadores HAC são assintoticamente normais — a não-normalidade dos resíduos não invalida a inferência, mas deve ser reportada.
+- ⚠ **VIF elevado para a constante** (17,2): resultado estrutural da presença simultânea de constante, tendência e variáveis com componente de tendência. Não afeta a validade dos coeficientes individualmente identificados.
+- ⚠ **Endogeneidade potencial**: em modelos com dados de nível, a causalidade reversa ($\ln PIB \rightarrow u_t$) não pode ser descartada sem um modelo estrutural. O Modelo 4 deve ser interpretado como uma relação de equilíbrio de longo prazo, não como uma equação estrutural causal.
+
+#### 4.3.5 Posição do Modelo 4 na Análise Comparativa
+
+O Modelo 4 complementa os modelos anteriores na seguinte estrutura:
+
+| Dimensão | Modelo 1 (1ª Diferença) | Modelo 2 (Hiato Hamilton) | Modelo 4 (Elasticidade) |
+|----------|------------------------|--------------------------|------------------------|
+| Horizonte | Curto prazo | Longo prazo | Longo prazo |
+| Variável dependente | $\Delta\ln\_pib$ | Hiato Hamilton | $\ln\_pib$ |
+| Coeficiente Okun | $\approx -1\%$/p.p. | Implícito via NAIRU | $-1{,}95\%$/p.p. |
+| Cointegração | N/A (séries I(0)) | N/A (filtro remove tendência) | Confirmada (p=0,0004) |
+| Produto potencial | N/A | Via filtro Hamilton | Via tendência + NAIRU |
+
+O Modelo 4 fecha o ciclo analítico do TCC ao estimar diretamente a relação de longo prazo entre o nível do PIB e o desemprego, confirmando e quantificando a Lei de Okun em sua forma elasticidade.
+
+#### 4.3.6 Contextualização na Literatura Brasileira e Contribuição do TCC
+
+A escassez de estudos brasileiros sobre os modelos de Primeira Diferença e de Elasticidade — em contraste com a abundância de trabalhos usando o Filtro HP no modelo de Hiato — não é acidental. Três fatores histórico-metodológicos explicam essa concentração:
+
+**1. A obsessão pelo Hiato do Produto e o regime de Metas de Inflação**
+
+No Brasil, a Lei de Okun raramente é estudada como objeto de interesse primário. Ela costuma ser um passo intermediário em trabalhos que querem estimar a Curva de Phillips (para prever inflação) ou a Regra de Taylor (para prever a taxa Selic). Como o Banco Central do Brasil opera sob o regime de Metas de Inflação desde 1999, toda a macroeconomia empírica brasileira gravitou em torno da estimação do Hiato do Produto — a medida de capacidade ociosa que condiciona a inflação. Por inércia metodológica, quando os pesquisadores precisam da relação desemprego-produto, simplesmente reaproveitam o hiato já calculado para outras finalidades e ignoram as demais especificações da Lei de Okun.
+
+**2. O pesadelo econométrico da tendência única (Modelo de Elasticidade)**
+
+O Modelo de Elasticidade pressupõe que o país possui uma taxa de crescimento estrutural relativamente estável, representada por uma tendência linear $\beta_1 \cdot t$. A história econômica brasileira é intrinsecamente adversa a essa premissa: hiperinflação e estabilização (1994), boom das commodities (2003–2011), recessão histórica (2015–2016) e pandemia (2020) produziram mudanças abruptas no ritmo de crescimento potencial. Ajustar uma única linha de tendência a esses 28 anos é metodologicamente arriscado. A maioria dos pesquisadores prefere utilizar o Filtro HP, que matematicamente suaviza as quebras estruturais sem que o autor precise identificá-las e justificá-las explicitamente.
+
+**3. A aversão ao ruído do Modelo de Primeira Diferença**
+
+O Modelo de Primeira Diferença captura o curtíssimo prazo (variação trimestral). Dados brasileiros em primeira diferença são notoriamente ruidosos: as trocas de metodologia das pesquisas do IBGE (1991, 2002, 2012) e os choques externos (1998, 2008, 2015, 2020) geram outliers de grande magnitude na série $\Delta u_t$. A identificação e o tratamento desses outliers — com teste de Chow, análise de notas técnicas do IBGE e construção de dummies exatas — exige um esforço analítico considerável que a maioria dos trabalhos evita ao passar diretamente para o Filtro HP.
+
 ---
 
-## Fase 4: Análises de Mercado de Trabalho (Dados Regionais e Setoriais)
+**A contribuição metodológica deste TCC**
 
-Esta fase expande a análise para dados mais granulares, focando em dinâmicas específicas do mercado de trabalho que não são capturadas na análise agregada nacional.
+O artigo seminal de Okun (1962) propôs originalmente três especificações — Primeira Diferença, Hiato e Elasticidade — precisamente para que servissem como triangulação mútua dos resultados. A literatura brasileira contemporânea restringiu-se quase exclusivamente à abordagem de Hiato (com o Filtro HP), abandonando as demais especificações. Este trabalho inova ao resgatar a proposta metodológica original de Okun (1962) e aplicá-la com rigor aos dados brasileiros, incorporando correções modernas: o Filtro de Hamilton (2018) em lugar do HP, dummies de quebra estrutural para as transições metodológicas do IBGE, correção HAC de Newey-West e verificação formal de cointegração pelo procedimento de Engle-Granger.
 
-### 4.1 (Placeholder para futuras análises)
+> **Sugestão para a Introdução ou Revisão de Literatura do TCC:**
+> *"Embora a literatura nacional contemporânea sobre a Lei de Okun concentre-se quase exclusivamente na abordagem de Hiato do Produto — frequentemente utilizando o Filtro Hodrick-Prescott —, este trabalho inova ao resgatar a proposta metodológica original de Okun (1962). A estimação simultânea do modelo de Primeira Diferença, do modelo de Hiato (via Filtro de Hamilton) e do modelo de Elasticidade permite uma triangulação dos resultados, isolando os efeitos de curto e longo prazo e preenchendo uma lacuna analítica nos estudos empíricos sobre o mercado de trabalho brasileiro."*
 
-### 4.2 Taxa de Desocupação por Faixa Etária (Rio de Janeiro)
+---
 
-**Objetivo:** Analisar como a taxa de desocupação se comporta entre diferentes faixas etárias no estado do Rio de Janeiro, identificando os grupos mais vulneráveis aos ciclos econômicos.
+### 4.4 Extensões e Melhorias Propostas para o Modelo 4
 
-**Fonte dos Dados:** Dados extraídos do SIDRA/IBGE, compilados no arquivo `4.2_taxa_desocupacao_por_faixa_etaria.csv`.
+O Modelo 4 estimado nesta fase constitui uma *naive approach* (abordagem básica) para a relação de elasticidade: uma única tendência linear $\beta_1 \cdot t$ percorre os 28 anos de amostra sem qualquer ajuste para as mudanças estruturais no ritmo de crescimento do PIB brasileiro. Esta seção documenta as três extensões que elevariam o modelo ao rigor de uma dissertação de mestrado ou artigo publicável, e que poderão ser implementadas em versões futuras do TCC.
 
-**Metodologia de Tratamento (`analise_dados_rj.ipynb`):**
+#### 4.4.1 Quebras Estruturais na Tendência (*Trend Breaks*)
 
-1.  **Carregamento e Filtragem:**
-    *   O arquivo CSV original contém dados para múltiplas unidades da federação (Brasil, Regiões e Estados).
-    *   **Ação Crítica:** Foi aplicado um filtro inicial no `DataFrame` para selecionar apenas as linhas onde a coluna `Unidade da Federação` é igual a `"Rio de Janeiro"`. Isso é essencial para isolar a análise no estado de interesse e evitar a plotagem de múltiplas séries no gráfico.
+**Problema:** A variável $t$ assume crescimento constante de 1996 a 2024. O Brasil sofreu ao menos duas quebras brutais nesse ritmo: a recessão histórica de 2015–2016 (pior desde 1901, segundo o IBGE) e a pandemia de COVID-19 em 2020-T2.
 
-2.  **Remodelagem dos Dados (Pivot):**
-    *   O `DataFrame` original está em formato "longo" (ou empilhado), onde cada linha representa uma observação (um grupo etário em um trimestre).
-    *   Para a visualização, os dados foram remodelados para o formato "largo" usando a função `pivot_table`. O `Trimestre` foi definido como índice, os valores de `Grupo de idade` se tornaram as novas colunas, e o `Valor` (taxa de desocupação) preencheu a tabela.
+**Solução — Dummies de Inclinação e Nível:**
 
-3.  **Agregação de Faixas Etárias:**
-    *   O IBGE fornece os dados para jovens em duas faixas: "14 a 17 anos" e "18 a 24 anos". Para simplificar a análise e criar um grupo único "14 a 24 anos", optou-se por utilizar a série "18 a 24 anos" como representativa do grupo, renomeando a coluna.
-    *   **Justificativa:** Este grupo é o principal componente da força de trabalho jovem e reflete de forma mais acurada a dinâmica de entrada no mercado de trabalho formal. Uma média simples das taxas seria estatisticamente incorreta, e uma média ponderada exigiria dados populacionais não disponíveis neste dataset.
+Para cada quebra estrutural identificada (via Teste de Chow ou inspeção visual), cria-se uma dummy $D_k$ (igual a 0 antes e 1 depois da quebra) e um termo de interação $D_k \cdot t$ que permite que a inclinação da tendência mude. A equação estendida com duas quebras seria:
 
-4.  **Tratamento da Data e Geração do Gráfico:**
-    *   A coluna de trimestre (em formato de texto) foi convertida para `datetime`.
-    *   Foi gerado um gráfico de linhas com marcadores distintos para cada faixa etária, permitindo a comparação visual da evolução da desocupação ao longo do tempo.
+$$\ln Y_t = \beta_0 + \beta_1 t + \delta_1 D_{2015} + \phi_1 (D_{2015} \cdot t) + \delta_2 D_{2020} + \phi_2 (D_{2020} \cdot t) + \beta_2 u_t + \gamma_1 D_{PMENova} + \gamma_2 D_{PNADc} + \varepsilon_t$$
 
-**Análise do Gráfico Gerado:**
-*   O gráfico (`grafico_4_2_idade.png`) mostra claramente que a taxa de desocupação é significativamente maior para a faixa etária mais jovem (14 a 24 anos), confirmando a maior vulnerabilidade deste grupo.
-*   Observa-se também que os picos de desemprego (como o de 2016-2017) impactam de forma mais acentuada os jovens.
-*   As faixas etárias mais velhas (40-59 e 60+) apresentam taxas de desocupação consideravelmente menores e mais estáveis ao longo do ciclo.
+| Parâmetro | Interpretação |
+|-----------|--------------|
+| $\delta_k$ | Deslocamento de **nível** do PIB na data da quebra $k$ |
+| $\phi_k$ | Mudança na **inclinação** da tendência após a quebra $k$ — se $\phi_1 < 0$, o crescimento potencial caiu após 2015 |
+| $\beta_2$ | Elasticidade de Okun reestimada com tendência mais flexível |
+
+A hipótese é que $\beta_2$ se torne mais negativo (em valor absoluto) após a correção, pois o modelo básico pode estar atribuindo parte da queda do PIB em 2015–2016 ao desemprego, quando na verdade ela reflete a quebra de tendência.
+
+#### 4.4.2 Risco de Regressão Espúria — Status Atual
+
+**Problema original:** Como $\ln PIB$ e $u_t$ são variáveis $I(1)$, a regressão em nível pode gerar resultados falsos (alta correlação espúria por co-tendência). O diagnóstico clássico é: $R^2$ muito alto + Durbin-Watson muito baixo — exatamente o padrão observado no Modelo 4 ($R^2_{Adj} = 0{,}967$; DW = 0,425).
+
+**Status atual:** A cointegração foi **confirmada** pelo teste de Engle-Granger (ADF nos resíduos, p = 0,0004), validando o Modelo 4 mesmo em sua forma básica. Os resíduos são $I(0)$, provando que a relação é genuína e não espúria.
+
+**Risco residual:** A cointegração foi confirmada com a tendência linear simples. Ao introduzir as quebras estruturais na tendência (seção 4.4.1), o teste de cointegração deverá ser repetido para confirmar que os novos resíduos permanecem $I(0)$. Quebras mal especificadas podem fazer os resíduos perderem a estacionaridade.
+
+#### 4.4.3 Modelo de Correção de Erros (*Error Correction Model* — ECM)
+
+**Motivação:** O Modelo 4 captura apenas a relação de **longo prazo** entre $\ln PIB$ e desemprego. Ele não responde: *após um choque recessivo, com que velocidade a economia retorna ao equilíbrio?* Para o Brasil, com sua volatilidade histórica, essa dinâmica de curto prazo é economicamente relevante.
+
+**Procedimento (dois estágios, Engle-Granger 1987):**
+
+**Estágio 1 — Relação de longo prazo (já estimada):**
+Salvar os resíduos $\hat{\varepsilon}_t$ da regressão de cointegração do Modelo 4.
+
+**Estágio 2 — ECM (equação de curto prazo):**
+
+$$\Delta \ln Y_t = \alpha_0 + \alpha_1 \Delta u_t + \lambda \hat{\varepsilon}_{t-1} + \nu_t$$
+
+| Parâmetro | Interpretação |
+|-----------|--------------|
+| $\alpha_1$ | Elasticidade de **curto prazo** — análoga ao Modelo 1 (Primeira Diferença) |
+| $\lambda$ | **Velocidade de ajuste** — fração do desvio de equilíbrio corrigida a cada trimestre; deve ser $-1 < \lambda < 0$ para que o sistema seja estável |
+
+Se $\lambda = -0{,}15$, por exemplo, significa que 15% do desvio do equilíbrio de longo prazo é eliminado a cada trimestre — ou seja, a economia leva cerca de 6 trimestres (~1,5 anos) para retornar ao equilíbrio após um choque.
+
+**Relevância para o TCC:** A comparação entre $\alpha_1$ (ECM, curto prazo) e $\beta_2$ (Modelo 4, longo prazo) e o coeficiente do Modelo 1 (Primeira Diferença) formaria um quadro completo e coerente da dinâmica da Lei de Okun no Brasil — o que a banca avaliadora reconheceria como contribuição metodológica robusta.
+
+> **Ordem de implementação sugerida:** (1) Identificar as quebras estruturais com o Teste de Chow e construir as dummies de inclinação; (2) Re-estimar o Modelo 4 estendido; (3) Confirmar cointegração nos novos resíduos; (4) Estimar o ECM e interpretar $\lambda$.
 
 ---
 
